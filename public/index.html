@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Військовослужбовці - CRUD</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 0 20px; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        th { background-color: #f4f4f4; }
+        button { 
+            margin: 5px; 
+            padding: 5px 10px; 
+        }
+        form { 
+            display: none; 
+            margin-top: 20px; 
+        }
+        .form-group { 
+            margin: 10px 0; 
+        }
+        label { 
+            display: inline-block; 
+            width: 100px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Військовослужбовці</h1>
+    <button onclick="showForm()">Додати нового</button>
+
+    <form id="personForm">
+        <div class="form-group">
+            <label>Ім'я:</label>
+            <input type="text" id="firstName" required>
+        </div>
+        <div class="form-group">
+            <label>Прізвище:</label>
+            <input type="text" id="lastName" required>
+        </div>
+        <div class="form-group">
+            <label>Звання:</label>
+            <select id="rank" required>
+                <option value="Солдат">Солдат</option>
+                <option value="Сержант">Сержант</option>
+                <option value="Старший сержант">Старший сержант</option>
+                <option value="Молодший лейтенант">Молодший лейтенант</option>
+                <option value="Лейтенант">Лейтенант</option>
+                <option value="Старший лейтенант">Старший лейтенант</option>
+                <option value="Капітан">Капітан</option>
+                <option value="Майор">Майор</option>
+                <option value="Підполковник">Підполковник</option>
+                <option value="Полковник">Полковник</option>
+                <option value="Генерал">Генерал</option>
+                <option value="Працівник ЗСУ">Працівник ЗСУ</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Номер:</label>
+            <input type="text" id="personalNumber" required>
+        </div>
+        <div class="form-group">
+            <label>Підрозділ:</label>
+            <input type="text" id="unit" required>
+        </div>
+        <div class="form-group">
+            <label>Посада:</label>
+            <input type="text" id="position" required>
+        </div>
+        <div class="form-group">
+            <label>Дата:</label>
+            <input type="date" id="dateOfBirth" required>
+        </div>
+        <button type="submit">Зберегти</button>
+        <button type="button" onclick="hideForm()">Скасувати</button>
+    </form>
+
+    <table id="personnelTable">
+        <thead>
+            <tr>
+                <th>Ім'я</th>
+                <th>Прізвище</th>
+                <th>Звання</th>
+                <th>Номер</th>
+                <th>Дії</th>
+            </tr>
+        </thead>
+        <tbody id="personnelList"></tbody>
+    </table>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api/personnel';
+        let currentId = null;
+
+        function openForm(item = null) {
+            const frm = document.getElementById('personForm');
+            frm.style.display = 'block';
+            if (item) {
+                currentId = item._id;
+                document.getElementById('firstName').value = item.firstName;
+                document.getElementById('lastName').value = item.lastName;
+                document.getElementById('rank').value = item.rank;
+                document.getElementById('personalNumber').value = item.personalNumber;
+                document.getElementById('unit').value = item.unit;
+                document.getElementById('position').value = item.position;
+                document.getElementById('dateOfBirth').value = item.dateOfBirth.split('T')[0];
+            } else {
+                currentId = null;
+                document.getElementById('personForm').reset();
+            }
+        }
+
+        function closeForm() {
+            document.getElementById('personForm').style.display = 'none';
+            currentId = null;
+        }
+
+        async function fetchAll() {
+            try {
+                const resp = await fetch(API_URL);
+                const data = await resp.json();
+                const tbody = document.getElementById('personnelList');
+                tbody.innerHTML = '';
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.firstName}</td>
+                        <td>${item.lastName}</td>
+                        <td>${item.rank}</td>
+                        <td>${item.personalNumber}</td>
+                        <td>
+                            <button onclick='editItem(${JSON.stringify(item)})'>Редагувати</button>
+                            <button onclick='removeItem("${item._id}")'>Видалити</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                alert('Не вдалося завантажити');
+                console.error(e);
+            }
+        }
+
+        function editItem(item) {
+            openForm(item);
+        }
+
+        async function removeItem(id) {
+            if (confirm('Ви впевнені?')) {
+                try {
+                    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                    fetchAll();
+                } catch (e) {
+                    alert('Не вдалося видалити');
+                    console.error(e);
+                }
+            }
+        }
+
+        document.getElementById('personForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const itemData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                rank: document.getElementById('rank').value,
+                personalNumber: document.getElementById('personalNumber').value,
+                unit: document.getElementById('unit').value,
+                position: document.getElementById('position').value,
+                dateOfBirth: document.getElementById('dateOfBirth').value
+            };
+            try {
+                const url = currentId ? `${API_URL}/${currentId}` : API_URL;
+                const method = currentId ? 'PUT' : 'POST';
+                await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(itemData)
+                });
+                closeForm();
+                fetchAll();
+            } catch (e) {
+                alert('Не вдалося зберегти');
+                console.error(e);
+            }
+        };
+
+        fetchAll();
+    </script>
+</body>
+</html>
